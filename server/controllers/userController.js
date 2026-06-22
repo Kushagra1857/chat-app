@@ -8,25 +8,30 @@ export const signup = async (req, res) => {
     const { fullName, email, password, bio } = req.body;
 
     try {
-        // Validate required fields
-        if (!fullName || !email || !password || !bio) {
+        // Validate truly required fields (bio is optional — matches the User model)
+        if (!fullName || !email || !password) {
             return res
                 .status(400)
-                .json({ success: false, message: "Missing required details" });
+                .json({ success: false, message: "Full name, email, and password are required" });
         }
 
-        // Basic length validation to prevent abuse
+        // Basic length/format validation
+        if (fullName.trim().length < 2) {
+            return res
+                .status(400)
+                .json({ success: false, message: "Full name must be at least 2 characters" });
+        }
         if (fullName.length > 60) {
             return res
                 .status(400)
-                .json({ success: false, message: "Full name is too long" });
+                .json({ success: false, message: "Full name is too long (max 60 chars)" });
         }
         if (password.length < 6) {
             return res
                 .status(400)
                 .json({ success: false, message: "Password must be at least 6 characters" });
         }
-        if (bio.length > 500) {
+        if (bio && bio.length > 500) {
             return res
                 .status(400)
                 .json({ success: false, message: "Bio is too long (max 500 chars)" });
@@ -43,10 +48,10 @@ export const signup = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const newUser = await User.create({
-            fullName,
-            email,
+            fullName: fullName.trim(),
+            email: email.trim().toLowerCase(),
             password: hashedPassword,
-            bio,
+            bio: bio?.trim() || "",
         });
 
         const token = generateToken(newUser._id);
@@ -78,7 +83,7 @@ export const login = async (req, res) => {
                 .json({ success: false, message: "Email and password are required" });
         }
 
-        const userData = await User.findOne({ email });
+        const userData = await User.findOne({ email: email.trim().toLowerCase() });
         if (!userData) {
             return res
                 .status(401)
@@ -125,7 +130,7 @@ export const updateProfile = async (req, res) => {
         if (fullName && fullName.length > 60) {
             return res
                 .status(400)
-                .json({ success: false, message: "Full name is too long" });
+                .json({ success: false, message: "Full name is too long (max 60 chars)" });
         }
         if (bio && bio.length > 500) {
             return res
