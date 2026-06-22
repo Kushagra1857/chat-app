@@ -51,6 +51,8 @@ app.use(
     cors({
         origin: allowedOrigins,
         credentials: true,
+        // Explicitly allow the custom 'token' header used for JWT auth
+        allowedHeaders: ["Content-Type", "token"],
     })
 );
 
