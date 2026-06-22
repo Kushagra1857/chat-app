@@ -7,9 +7,9 @@ import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import { Server } from "socket.io";
 
-// Allowed origins for CORS (comma-separated in env for multiple)
+// Allowed origins — strip trailing slashes defensively to prevent CORS mismatches
 const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(",").map((o) => o.trim())
+    ? process.env.FRONTEND_URL.split(",").map((o) => o.trim().replace(/\/+$/, ""))
     : ["http://localhost:5173"];
 
 // Create Express app and HTTP server

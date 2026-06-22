@@ -4,7 +4,8 @@ import toast from "react-hot-toast";
 import {io} from "socket.io-client"
 
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+// Strip any trailing slash — prevents "//login/api/..." double-slash bug
+const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:5000").replace(/\/+$/, "");
 axios.defaults.baseURL = backendUrl;
 
 
