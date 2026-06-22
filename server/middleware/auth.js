@@ -1,25 +1,27 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 
-
-// Middlewares to protect routes
-export const protectRoute = async (req , res , next)=>{
+// Middleware to protect routes — verifies the JWT token from the request header
+export const protectRoute = async (req, res, next) => {
     try {
         const token = req.headers.token;
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET)
+        if (!token) {
+            return res.status(401).json({ success: false, message: "No token provided. Please login." });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         const user = await User.findById(decoded.userId).select("-password");
 
-        if(!user) return res.json({success: false, message:"User not found"});
+        if (!user) {
+            return res.status(401).json({ success: false, message: "User not found" });
+        }
 
         req.user = user;
-
         next();
-
     } catch (error) {
-        console.log(error.message);
-        res.json({success: false, message: "User not found"});
-        
+        console.error("Auth middleware error:", error.message);
+        res.status(401).json({ success: false, message: "Invalid or expired token. Please login again." });
     }
-}
+};

@@ -1,60 +1,70 @@
-import dotenv from "dotenv";
-dotenv.config();
-import express from "express";
 import "dotenv/config";
+import express from "express";
 import cors from "cors";
 import http from "http";
 import { connectDB } from "./lib/db.js";
 import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import { Server } from "socket.io";
-import { Socket } from "dgram";
 
-// create Express app and HTTP server
+// Allowed origins for CORS (comma-separated in env for multiple)
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(",").map((o) => o.trim())
+    : ["http://localhost:5173"];
+
+// Create Express app and HTTP server
 const app = express();
 const server = http.createServer(app);
 
-// Initialize socket.io server
-export const io = new Server(server , {
-    cors: {origin: "*"}
-})
+// Initialize Socket.io server with restricted CORS
+export const io = new Server(server, {
+    cors: {
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true,
+    },
+});
 
-// store online users
-export const userSocketMap = {}; // {userId : socketId}
+// Store online users: { userId: socketId }
+export const userSocketMap = {};
 
 // Socket.io connection handler
-io.on("connection" , (Socket)=>{
-    const userId = Socket.handshake.query.userId;
-    console.log("User Connected" , userId);
+io.on("connection", (socket) => {
+    const userId = socket.handshake.query.userId;
+    console.log("User Connected:", userId);
 
-    if(userId) userSocketMap[userId] = Socket.id;
-    
-    // Emit online users to all connected clinents
-    io.emit("getOnlineUsers" , Object.keys(userSocketMap));
+    if (userId) userSocketMap[userId] = socket.id;
 
-    Socket.on("disconnect" , ()=>{
-        console.log("User Disconnected" , userId);
+    // Emit online users to all connected clients
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+    socket.on("disconnect", () => {
+        console.log("User Disconnected:", userId);
         delete userSocketMap[userId];
-        io.emit("getOnlineUsers" , Object.keys(userSocketMap))
-    })
-})
+        io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    });
+});
 
 // Middleware setup
-app.use(express.json({limit: "4mb"}));
-app.use(cors());
+app.use(express.json({ limit: "4mb" }));
+app.use(
+    cors({
+        origin: allowedOrigins,
+        credentials: true,
+    })
+);
 
 // Routes setup
-app.use("/api/status" , (req,res)=>res.send("server is live"));
-app.use("/api/auth" , userRouter);
-app.use("/api/messages" , messageRouter);
+app.use("/api/status", (req, res) => res.json({ status: "server is live" }));
+app.use("/api/auth", userRouter);
+app.use("/api/messages", messageRouter);
 
-//connect to mongodb
+// Connect to MongoDB
 await connectDB();
 
-if(process.env.NODE_ENV !== "production"){
-    const PORT = process.env.PORT || 5000;
-    server.listen(PORT, ()=> console.log(`server is running on PORT : ${PORT}`));
-}
-console.log(process.env.MONGO_URI);
-// Export server for vercel
+// Start HTTP server (Render provides PORT env var; fallback to 5000 locally)
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Export server (kept for potential serverless adapters)
 export default server;
